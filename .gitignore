@@ -1,5 +1,5 @@
-library/*
-!library/*.idl
-!library/__init__.py
+src/library/*
+!src/library/*.idl
+!src/library/__init__.py
 __pycache__/
 *.py[cod]
