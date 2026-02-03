@@ -4,7 +4,7 @@ Adapter Subscriber
 import signal
 
 import fastdds
-from library.Adapter import Adapter
+from src.library.Adapter import Adapter
 
 DESCRIPTION = """Adapter Subscriber example for Fast DDS python bindings"""
 USAGE = ('python3 AdapterSubscriber.py')

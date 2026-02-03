@@ -5,7 +5,7 @@ from threading import Condition
 import time
 
 import fastdds
-from library.Adapter import Adapter
+from src.library.Adapter import Adapter
 
 DESCRIPTION = """Adapter Publisher example for Fast DDS python bindings"""
 USAGE = ('python3 AdapterPublisher.py')

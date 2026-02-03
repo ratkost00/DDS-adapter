@@ -2,6 +2,8 @@ import sys
 from multiprocessing import Process, Queue
 from multiprocessing.connection import Client, Listener
 from array import array
+from src.adapter import AdapterPublisher
+from src.adapter import AdapterSubscriber
 
 def server_fun(local_port, queue):
     # Set the address of the local node's server
