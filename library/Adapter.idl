@@ -1,0 +1,5 @@
+struct Adapter
+{
+    unsigned long index;
+    string message;
+};
