@@ -1,2 +1,3 @@
 library/*
 !library/*.idl
+!library/__init__.py
