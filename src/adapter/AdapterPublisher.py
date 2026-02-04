@@ -16,7 +16,7 @@ class WriterListener (fastdds.DataWriterListener) :
         super().__init__()
 
 
-    def on_publication_matched(self, datawriter, info) :
+    def on_publication_matched(self, writer, info) :
         if (0 < info.current_count_change) :
             print ("Publisher matched subscriber {}".format(info.last_subscription_handle))
             self._writer._cvDiscovery.acquire()

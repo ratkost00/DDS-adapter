@@ -32,11 +32,11 @@ def main():
     number_of_proc = int( sys.argv[2] )
 
     # Create list of all ports
-    allPorts = [6000+i for i in range(number_of_proc)]
+    allPorts: list[int] = [6000+i for i in range(number_of_proc)]
     
     # Set ports
-    local_port =   allPorts[proc_index]
-    remote_ports = [x for x in allPorts if x != local_port]
+    local_port: int =   allPorts[proc_index]
+    remote_ports: list[int] = [x for x in allPorts if x != local_port]
 
     # Each instance must have one broadcast topic(handshake)
     # When broadcast topic is matched all instances that are interested in broadcasted topic will create local instance of writer for that topic
@@ -52,6 +52,10 @@ def main():
     # To exit send message: exit.
     print('Send a message to the peer node and receive message from the peer node.')
     print('To exit send message: exit.')
+
+    queue : Queue[str] = Queue()
+
+    commHandler = CommunicationHandler(msgQueue=queue)
 
     while True:
         command = int(input("Messaging method: \n\t1.Broadcast\nEnter method here:"))

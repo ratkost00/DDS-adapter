@@ -20,23 +20,23 @@ class ReaderListener(fastdds.DataReaderListener):
         super().__init__()
 
 
-    def on_subscription_matched(self, datareader, info) :
+    def on_subscription_matched(self, reader, info) -> None:
         if (0 < info.current_count_change) :
-            print ("Subscriber matched publisher {}".format(info.last_publication_handle))
+            # print ("Subscriber matched publisher {}".format(info.last_publication_handle))
+            pass
         else :
-            print ("Subscriber unmatched publisher {}".format(info.last_publication_handle))
+            # print ("Subscriber unmatched publisher {}".format(info.last_publication_handle))
+            pass
 
 
-    def on_data_available(self, reader):
+    def on_data_available(self, reader) -> None:
         info = fastdds.SampleInfo()
         data = Adapter()
         reader.take_next_sample(data, info)
-
         print("Received {message} : {index}".format(message=data.message(), index=data.index()))
 
 
 class Reader:
-
 
     def __init__(self, topicName : str, topic : str):
         factory = fastdds.DomainParticipantFactory.get_instance()
@@ -72,8 +72,7 @@ class Reader:
     def run(self):
         signal.signal(signal.SIGINT, signal_handler)
         print('Press Ctrl+C to stop')
-        signal.pause()
-        self.delete()
+        
 
 
 # if __name__ == '__main__':
