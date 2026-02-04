@@ -5,6 +5,14 @@ from array import array
 from src.adapter import AdapterPublisher
 from src.adapter import AdapterSubscriber
 
+
+broadcastPublisher = AdapterPublisher.Writer("Broadcast", "broadcast")
+broadcastSubscriber = AdapterSubscriber.Reader("Broadcast", "broadcast")
+
+def initBroadcast() -> None:
+    broadcastPublisher.run()
+    broadcastSubscriber.run()
+
 def server_fun(local_port, queue):
     # Set the address of the local node's server
     local_server_address = ('localhost', local_port)
@@ -33,8 +41,7 @@ def rcvMsg(queue):
     return queue.get()
 
 def broadcastMsg(list_of_remote_server_address, msg):
-    for remote_server_address in list_of_remote_server_address:
-        sendMsg(remote_server_address, msg)
+    broadcastPublisher.write(msg)
 
 def rcvMsgs(queue, no_of_messages_to_receive):
     msgs = []
