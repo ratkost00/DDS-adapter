@@ -63,6 +63,7 @@ class Writer:
 
 
     def write(self, message : str):
+        # print("Write method form publisher " + message)
         data = Adapter()
         data.message(message)
         data.index(self.index)

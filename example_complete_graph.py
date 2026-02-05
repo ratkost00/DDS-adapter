@@ -57,15 +57,15 @@ def main():
     
     # Send a message to the peer node and receive message from the peer node.
     # To exit send message: exit.
-    print('Send a message to the peer node and receive message from the peer node.')
-    print('To exit send message: exit.')
+    # print('Send a message to the peer node and receive message from the peer node.')
+    # print('To exit send message: exit.')
 
     queue : Queue = Queue()
-    commHandler = CommunicationHandler(msgQueue=queue)
-    commHandler.initLocalListener(localTopic=instance_topic)
-    # parentConn , childConn = Pipe()
-    # commProcess = Process(target=server_fun, args=(childConn, queue, instance_topic,))
-    # commProcess.start()
+    # commHandler = CommunicationHandler(msgQueue=queue)
+    # commHandler.initLocalListener(localTopic=instance_topic)
+    parentConn , childConn = Pipe()
+    commProcess = Process(target=server_fun, args=(childConn, queue, instance_topic,))
+    commProcess.start()
 
     # Pass communication handler to another process to handle everything
     # Main process should only handle the queue
@@ -76,7 +76,7 @@ def main():
         command = int(input("Messaging method: \n\t1.Broadcast\n\t2.Receive message\n\t3.Receive all messages\nEnter method here: "))
         if command == 1:
             # Broadcast local topic to all peers in communication
-            broadcastMsg(remote_server_addresses, instance_topic)
+            broadcastMsg(parentConn, instance_topic)
         elif command == 2:
             msg : str = rcvMsg(queue=queue)
             if acceptConn(instance_topic, msg):
@@ -93,7 +93,7 @@ def main():
         else:
             print("No available commands for selected option")
         
-    # commProcess.join()    
+    commProcess.join()    
 
 if __name__ == '__main__':
     main()

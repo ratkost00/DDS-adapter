@@ -1,5 +1,6 @@
 import sys
-from multiprocessing import Process, Queue
+import time
+from multiprocessing import Process, Queue, Pipe
 from threading import Lock
 from typing import Optional
 from multiprocessing.connection import Client, Listener
@@ -31,6 +32,7 @@ class CommunicationHandler(metaclass = CommunicationSingleton) :
         self.localSubscriber : AdapterSubscriber.Reader | None = None
         self.broadcastPublisher : AdapterPublisher.Writer = AdapterPublisher.Writer(topicName="Broadcast", topic="broadcast")
         self.broadcastSubscriber : AdapterSubscriber.Reader = AdapterSubscriber.Reader(topicName="Broadcast", topic="broadcast", queue=msgQueue)
+        print("communication handler creation")
 
         self.broadcastPublisher.run()
         # self.broadcastSubscriber.run()
@@ -48,29 +50,31 @@ def getCommunicationHandlerInstance() -> CommunicationHandler:
 def server_fun(childConn, queue, instance_topic) -> None:
     commHandler = CommunicationHandler(msgQueue=queue)
     commHandler.initLocalListener(localTopic=instance_topic)
+    while True:
+        # here commands received via pipe should be processed
+        rec = childConn.recv()
+        if rec[0] == "broadcast":
+            commHandler.broadcastPublisher.write(message=rec[1])
+        pass
 
 def sendMsg(remote_server_address, msg):
-    with Client(remote_server_address, authkey=b'Lets work together') as conn:
-        conn.send(msg)
-
+    pass
 def rcvMsg(queue):
     return queue.get()
 
 def rcvAllMsgs(queue):
-    msgs = []
+    msgs : list[str] = []
     for i in range(queue.qsize()):
         msgs.append(queue.get())
     return msgs
 
 # Argument list_of_remote_server_address is no longer needed
 def broadcastMsg(list_of_remote_server_address, msg : str) -> None:
-    # broadcastPublisher.write(msg)
-    handler : CommunicationHandler = getCommunicationHandlerInstance()
-    handler.broadcastPublisher.write(message=msg)
+    list_of_remote_server_address.send(["broadcast", msg])
+    pass
 
 def rcvMsgs(queue, no_of_messages_to_receive):
-    msgs = []
-    
+    msgs = []    
     for i in range(no_of_messages_to_receive):
         msgs.append( rcvMsg(queue) )
     
