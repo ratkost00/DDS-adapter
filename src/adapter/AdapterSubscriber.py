@@ -37,7 +37,7 @@ class ReaderListener(fastdds.DataReaderListener):
         info = fastdds.SampleInfo()
         data = Adapter()
         reader.take_next_sample(data, info)
-        # print("Received {message} : {index}".format(message=data.message(), index=data.index()))
+        print("Received {message}".format(message=data.message()))
         if self.queue is not None:
             self.queue.put(data.message())
 

@@ -28,11 +28,10 @@ class CommunicationHandler(metaclass = CommunicationSingleton) :
     
     def __init__(self, msgQueue : Optional[Queue] = None) -> None:
         self.queue : Queue[str] | None = msgQueue
-        self.peers : dict[str, AdapterPublisher.Writer] | None = None
+        self.peers : dict[str, AdapterPublisher.Writer] = {}
         self.localSubscriber : AdapterSubscriber.Reader | None = None
         self.broadcastPublisher : AdapterPublisher.Writer = AdapterPublisher.Writer(topicName="Broadcast", topic="broadcast")
         self.broadcastSubscriber : AdapterSubscriber.Reader = AdapterSubscriber.Reader(topicName="Broadcast", topic="broadcast", queue=msgQueue)
-        print("communication handler creation")
 
         self.broadcastPublisher.run()
         # self.broadcastSubscriber.run()
@@ -40,21 +39,27 @@ class CommunicationHandler(metaclass = CommunicationSingleton) :
     def initQueue(self, msgQueue : Queue):
         self.queue = msgQueue
 
-    def initLocalListener(self, localTopic : str) -> None:
-        self.localSubscriber = AdapterSubscriber.Reader(topicName="LocalTopic", topic=localTopic)
-###############################################################################
+    def initLocalListener(self, localTopic : str, queue : Queue) -> None:
+        self.localSubscriber = AdapterSubscriber.Reader(topicName="LocalTopic", topic=localTopic, queue=queue)
 
-def getCommunicationHandlerInstance() -> CommunicationHandler:
-    return CommunicationHandler()
+    def initWriter(self, topic : str):
+        self.peers[topic] = AdapterPublisher.Writer(topicName="({topic})".format(topic=topic), topic=topic)
+###############################################################################
 
 def server_fun(childConn, queue, instance_topic) -> None:
     commHandler = CommunicationHandler(msgQueue=queue)
-    commHandler.initLocalListener(localTopic=instance_topic)
+    commHandler.initLocalListener(localTopic=instance_topic, queue=queue)
     while True:
-        # here commands received via pipe should be processed
         rec = childConn.recv()
-        if rec[0] == "broadcast":
-            commHandler.broadcastPublisher.write(message=rec[1])
+        match rec[0]:
+            case "broadcast":
+                commHandler.broadcastPublisher.write(message=rec[1])
+            case "accept":
+                print("Initializing writer")
+                commHandler.initWriter(topic=rec[1])
+                pass
+            case "direct":
+                commHandler.peers[rec[1]].write(message=str(rec[2]))
         pass
 
 def sendMsg(remote_server_address, msg):

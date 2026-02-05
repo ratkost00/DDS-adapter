@@ -45,35 +45,20 @@ def main():
     local_port: int =   allPorts[proc_index]
     remote_ports: list[int] = [x for x in allPorts if x != local_port]
 
-    # Each instance must have one broadcast topic(handshake)
-    # When broadcast topic is matched all instances that are interested in broadcasted topic will create local instance of writer for that topic
-    broadcast_topic = "broadcast"
-    # Format for instance topic will be peer/port_number (port number does not play role in this since everything is handled by middleware)
     instance_topic: str = "peer/" + str(local_port) 
     print(instance_topic)
     
     # Set the lst of the addresses of the peer node's servers
     remote_server_addresses: list[tuple[str, int]] = [('localhost', port) for port in remote_ports]
-    
-    # Send a message to the peer node and receive message from the peer node.
-    # To exit send message: exit.
-    # print('Send a message to the peer node and receive message from the peer node.')
-    # print('To exit send message: exit.')
 
     queue : Queue = Queue()
-    # commHandler = CommunicationHandler(msgQueue=queue)
-    # commHandler.initLocalListener(localTopic=instance_topic)
     parentConn , childConn = Pipe()
     commProcess = Process(target=server_fun, args=(childConn, queue, instance_topic,))
     commProcess.start()
-
-    # Pass communication handler to another process to handle everything
-    # Main process should only handle the queue
-    # For now let it be like this
-    
+    peers : list[str] = []
 
     while True:
-        command = int(input("Messaging method: \n\t1.Broadcast\n\t2.Receive message\n\t3.Receive all messages\nEnter method here: "))
+        command = int(input("Messaging method: \n\t1.Broadcast\n\t2.Receive message\n\t3.Receive all messages\n\t4.Send direct message\nEnter method here: "))
         if command == 1:
             # Broadcast local topic to all peers in communication
             broadcastMsg(parentConn, instance_topic)
@@ -88,8 +73,17 @@ def main():
             for msg in rcvAllMsgs(queue=queue):
                 if acceptConn(instance_topic, msg):
                     print("Connection with " + msg + " accepted")
+                    peers.append(msg)
+                    parentConn.send(["accept", msg])
                 else:
                     print("Connection with " + msg + " declined")
+        elif command == 4:
+            print("Connected peers: ")
+            for peer in peers:
+                print("\t " + peer)
+            selection = int(input("Select peer: "))
+            mess: str = "message from " + instance_topic
+            parentConn.send(["direct", peers[selection], mess])
         else:
             print("No available commands for selected option")
         

@@ -68,7 +68,7 @@ class Writer:
         data.message(message)
         data.index(self.index)
         self.writer.write(data)
-        # print("Sending {message} : {index}".format(message=data.message(), index=data.index()))
+        print("Sending {message} : {index}".format(message=data.message(), index=data.index()))
         self.index = self.index + 1
 
 
