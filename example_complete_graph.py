@@ -78,13 +78,18 @@ def main():
             # Broadcast local topic to all peers in communication
             broadcastMsg(remote_server_addresses, instance_topic)
         elif command == 2:
-            # print(acceptConn(instance_topic, (rcvMsg(queue=queue))))
-            print(rcvMsg(queue=queue))
+            msg : str = rcvMsg(queue=queue)
+            if acceptConn(instance_topic, msg):
+                print("Connection with " + msg + " accepted")
+            else:
+                print("Connection with " + msg + " declined")
         elif command == 3:
             print("Queued messages: ")
             for msg in rcvAllMsgs(queue=queue):
-                print("\t" + msg)
-                # print(acceptConn(msg, (rcvMsg(queue=queue))))
+                if acceptConn(instance_topic, msg):
+                    print("Connection with " + msg + " accepted")
+                else:
+                    print("Connection with " + msg + " declined")
         else:
             print("No available commands for selected option")
         
