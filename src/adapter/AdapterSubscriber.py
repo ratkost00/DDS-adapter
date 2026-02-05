@@ -5,6 +5,8 @@ import signal
 
 import fastdds
 from src.library.Adapter import *
+from multiprocessing import Queue
+from typing import Optional
 
 DESCRIPTION = """Adapter Subscriber example for Fast DDS python bindings"""
 USAGE = ('python3 AdapterSubscriber.py')
@@ -16,8 +18,10 @@ def signal_handler(sig, frame):
 class ReaderListener(fastdds.DataReaderListener):
 
 
-    def __init__(self):
+    def __init__(self, queue : Optional[Queue] = None) -> None:
         super().__init__()
+        if queue is not None:
+            self.queue : Queue[str] = queue
 
 
     def on_subscription_matched(self, reader, info) -> None:
@@ -33,12 +37,14 @@ class ReaderListener(fastdds.DataReaderListener):
         info = fastdds.SampleInfo()
         data = Adapter()
         reader.take_next_sample(data, info)
-        print("Received {message} : {index}".format(message=data.message(), index=data.index()))
+        # print("Received {message} : {index}".format(message=data.message(), index=data.index()))
+        if self.queue is not None:
+            self.queue.put(data.message())
 
 
 class Reader:
 
-    def __init__(self, topicName : str, topic : str):
+    def __init__(self, topicName : str, topic : str, queue : Optional[Queue] = None):
         factory = fastdds.DomainParticipantFactory.get_instance()
         self.participant_qos = fastdds.DomainParticipantQos()
         factory.get_default_participant_qos(self.participant_qos)
@@ -57,7 +63,7 @@ class Reader:
         self.participant.get_default_subscriber_qos(self.subscriber_qos)
         self.subscriber = self.participant.create_subscriber(self.subscriber_qos)
 
-        self.listener = ReaderListener()
+        self.listener = ReaderListener(queue=queue)
         self.reader_qos = fastdds.DataReaderQos()
         self.subscriber.get_default_datareader_qos(self.reader_qos)
         self.reader = self.subscriber.create_datareader(self.topic, self.reader_qos, self.listener)

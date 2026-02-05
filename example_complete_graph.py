@@ -1,5 +1,6 @@
 import sys
-from multiprocessing import Process, Queue
+import re
+from multiprocessing import Process, Queue, Pipe
 from src.message_api.msg_passing_api import *
 
 # Each application instance shall have one broadcast topic and multiple other topics for peer to peer communication
@@ -18,6 +19,12 @@ from src.message_api.msg_passing_api import *
 #   4. Instantiate publishers/subscribers for direct communication
 #   5. Establish direct communication between peers
 
+def acceptConn(localTopic : str, receivedTopic : str)  -> bool:
+    if localTopic == receivedTopic:
+        return False
+    else:
+        pattern : re.Pattern[str] = re.compile(r"^peer/\d+$")
+        return bool(pattern.match(receivedTopic))
 
 def main():
     # Parse command line arguments
@@ -53,18 +60,35 @@ def main():
     print('Send a message to the peer node and receive message from the peer node.')
     print('To exit send message: exit.')
 
-    queue : Queue[str] = Queue()
-
+    queue : Queue = Queue()
     commHandler = CommunicationHandler(msgQueue=queue)
+    commHandler.initLocalListener(localTopic=instance_topic)
+    # parentConn , childConn = Pipe()
+    # commProcess = Process(target=server_fun, args=(childConn, queue, instance_topic,))
+    # commProcess.start()
+
+    # Pass communication handler to another process to handle everything
+    # Main process should only handle the queue
+    # For now let it be like this
+    
 
     while True:
-        command = int(input("Messaging method: \n\t1.Broadcast\nEnter method here:"))
+        command = int(input("Messaging method: \n\t1.Broadcast\n\t2.Receive message\n\t3.Receive all messages\nEnter method here: "))
         if command == 1:
             # Broadcast local topic to all peers in communication
             broadcastMsg(remote_server_addresses, instance_topic)
+        elif command == 2:
+            # print(acceptConn(instance_topic, (rcvMsg(queue=queue))))
+            print(rcvMsg(queue=queue))
+        elif command == 3:
+            print("Queued messages: ")
+            for msg in rcvAllMsgs(queue=queue):
+                print("\t" + msg)
+                # print(acceptConn(msg, (rcvMsg(queue=queue))))
         else:
             print("No available commands for selected option")
-    
+        
+    # commProcess.join()    
 
 if __name__ == '__main__':
     main()
