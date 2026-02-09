@@ -1,3 +1,4 @@
+.vscode/*
 src/library/*
 !src/library/*.idl
 !src/library/__init__.py

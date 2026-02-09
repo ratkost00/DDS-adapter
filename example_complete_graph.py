@@ -1,7 +1,7 @@
 import sys
 import re
 from multiprocessing import Process, Queue, Pipe
-from src.message_api.msg_passing_api import *
+from src.message_api.msg_passing_api import MessageWriter, server_fun, rcvMsg, rcvMsgs, broadcastMsg, sendMsg
 
 # Each application instance shall have one broadcast topic and multiple other topics for peer to peer communication
 # Broadcast topic shall be universal and shall be used to notify existing peers about new peers
@@ -52,38 +52,40 @@ def main():
     remote_server_addresses: list[tuple[str, int]] = [('localhost', port) for port in remote_ports]
 
     queue : Queue = Queue()
-    parentConn , childConn = Pipe()
-    commProcess = Process(target=server_fun, args=(childConn, queue, instance_topic,))
+    commProcess = Process(target=server_fun, args=(queue, local_port))
     commProcess.start()
-    peers : list[str] = []
+    
+    writer = MessageWriter()
+    peers = []
 
     while True:
         command = int(input("Messaging method: \n\t1.Broadcast\n\t2.Receive message\n\t3.Receive all messages\n\t4.Send direct message\nEnter method here: "))
         if command == 1:
-            # Broadcast local topic to all peers in communication
-            broadcastMsg(parentConn, instance_topic)
+            broadcastMsg(remote_server_addresses, instance_topic)
+            pass
         elif command == 2:
             msg : str = rcvMsg(queue=queue)
             if acceptConn(instance_topic, msg):
+                writer.add_writer(msg.split('/')[1])
+                peers.append(msg.split('/')[1])
                 print("Connection with " + msg + " accepted")
             else:
                 print("Connection with " + msg + " declined")
         elif command == 3:
             print("Queued messages: ")
-            for msg in rcvAllMsgs(queue=queue):
+            for msg in rcvMsgs(queue=queue, no_of_messages_to_receive=queue.qsize()):
                 if acceptConn(instance_topic, msg):
-                    print("Connection with " + msg + " accepted")
-                    peers.append(msg)
-                    parentConn.send(["accept", msg])
+                    writer.add_writer(msg.split('/')[1])
+                    peers.append(msg.split('/')[1])
+                    print("Connection with " + msg + " accepted")            
                 else:
                     print("Connection with " + msg + " declined")
         elif command == 4:
             print("Connected peers: ")
             for peer in peers:
-                print("\t " + peer)
+                print("\tpeer: " + peer)
             selection = int(input("Select peer: "))
-            mess: str = "message from " + instance_topic
-            parentConn.send(["direct", peers[selection], mess])
+            sendMsg(peers[selection], f"Direct message from {instance_topic}")
         else:
             print("No available commands for selected option")
         
