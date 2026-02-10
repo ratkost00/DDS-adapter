@@ -58,36 +58,8 @@ def main():
     writer = MessageWriter()
     peers = []
 
-    while True:
-        command = int(input("Messaging method: \n\t1.Broadcast\n\t2.Receive message\n\t3.Receive all messages\n\t4.Send direct message\nEnter method here: "))
-        if command == 1:
-            broadcastMsg(remote_server_addresses, instance_topic)
-            pass
-        elif command == 2:
-            msg : str = rcvMsg(queue=queue)
-            if acceptConn(instance_topic, msg):
-                writer.add_writer(msg.split('/')[1])
-                peers.append(msg.split('/')[1])
-                print("Connection with " + msg + " accepted")
-            else:
-                print("Connection with " + msg + " declined")
-        elif command == 3:
-            print("Queued messages: ")
-            for msg in rcvMsgs(queue=queue, no_of_messages_to_receive=queue.qsize()):
-                if acceptConn(instance_topic, msg):
-                    writer.add_writer(msg.split('/')[1])
-                    peers.append(msg.split('/')[1])
-                    print("Connection with " + msg + " accepted")            
-                else:
-                    print("Connection with " + msg + " declined")
-        elif command == 4:
-            print("Connected peers: ")
-            for peer in peers:
-                print("\tpeer: " + peer)
-            selection = int(input("Select peer: "))
-            sendMsg(peers[selection], f"Direct message from {instance_topic}")
-        else:
-            print("No available commands for selected option")
+    for i in range(0, 1000):
+        broadcastMsg(remote_server_addresses, f"Broadcast message {i}")
         
     commProcess.join()    
 
