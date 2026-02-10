@@ -46,8 +46,14 @@ mkdir ~/Fast-DDS-python
 cd Fast-DDS-python/
 ~~~~
 
+For automatization of installation process install.sh script is added. To begin installation process as described in steps bellow it is required to run installation script with root privileges, using following commands:
+~~~~bash
+sudo chmod 777 install.sh
+sudo ./install.sh
+~~~~
+
 ### 2.1 Foonathan memory
-Set of command for compilation and installation for memory allocator:
+Set of commands for compilation and installation for memory allocator:
 ~~~~bash
 cd ~/Fast-DDS-python/
 git clone https://github.com/eProsima/foonathan_memory_vendor.git
@@ -58,7 +64,7 @@ cmake --build . --target install
 ~~~~
 
 ### 2.2 Fast-CDR
-Set of command for compilation and installation:
+Set of commands for compilation and installation:
 ~~~~bash
 cd ~/Fast-DDS-python/
 git clone https://github.com/eProsima/Fast-CDR.git
@@ -69,7 +75,7 @@ cmake --build . --target install
 ~~~~
 
 ### 2.3 Fast-DDS
-Set of command for compilation and installation:
+Set of commands for compilation and installation:
 ~~~~bash
 cd ~/Fast-DDS-python/
 git clone https://github.com/eProsima/Fast-DDS.git
@@ -80,7 +86,7 @@ cmake --build . --target install
 ~~~~
 
 ### 2.3 Fast-DDS Python bindings
-Set of command for compilation and installation:
+Set of commands for compilation and installation:
 ~~~~bash
 cd ~/Fast-DDS-python/
 git clone https://github.com/eProsima/Fast-DDS-python.git
