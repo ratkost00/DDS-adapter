@@ -14,6 +14,13 @@ set -e  # Exit on any error
 export DEBIAN_FRONTEND=noninteractive
 export TZ=Europe/Belgrade
 
+# Proxy configuration
+PROXY_URL="http://ftn.proxy:8080"
+export http_proxy="$PROXY_URL"
+export https_proxy="$PROXY_URL"
+export HTTP_PROXY="$PROXY_URL"
+export HTTPS_PROXY="$PROXY_URL"
+
 # Color codes for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -82,6 +89,11 @@ log_info "Checking CMake version..."
 CMAKE_VERSION=$(cmake --version | head -n1 | cut -d' ' -f3)
 log_info "CMake version: $CMAKE_VERSION"
 
+# Configure Git to use proxy
+log_info "Configuring Git to use proxy..."
+git config --global http.proxy "$PROXY_URL"
+git config --global https.proxy "$PROXY_URL"
+
 ###############################################################################
 # 2. INSTALL REQUIRED PACKAGES
 ###############################################################################
@@ -119,7 +131,7 @@ log_section "4. Installing Foonathan Memory"
 log_info "Cloning foonathan_memory_vendor repository..."
 if [ -d "foonathan_memory_vendor" ]; then
     log_warning "foonathan_memory_vendor directory exists, removing..."
-    rm -rf foonathan_memory_vendor
+    sudo rm -rf foonathan_memory_vendor
 fi
 git clone https://github.com/eProsima/foonathan_memory_vendor.git
 
@@ -139,7 +151,7 @@ cd "$WORK_DIR"
 log_info "Cloning Fast-CDR repository..."
 if [ -d "Fast-CDR" ]; then
     log_warning "Fast-CDR directory exists, removing..."
-    rm -rf Fast-CDR
+    sudo rm -rf Fast-CDR
 fi
 git clone https://github.com/eProsima/Fast-CDR.git
 
@@ -159,7 +171,7 @@ cd "$WORK_DIR"
 log_info "Cloning Fast-DDS repository..."
 if [ -d "Fast-DDS" ]; then
     log_warning "Fast-DDS directory exists, removing..."
-    rm -rf Fast-DDS
+    sudo rm -rf Fast-DDS
 fi
 git clone https://github.com/eProsima/Fast-DDS.git
 
@@ -179,7 +191,7 @@ cd "$WORK_DIR"
 log_info "Cloning Fast-DDS-python repository..."
 if [ -d "Fast-DDS-python" ]; then
     log_warning "Fast-DDS-python directory exists, removing..."
-    rm -rf Fast-DDS-python
+    sudo rm -rf Fast-DDS-python
 fi
 git clone https://github.com/eProsima/Fast-DDS-python.git
 
@@ -216,12 +228,23 @@ cd "$FASTDDS_GEN_DIR"
 log_info "Cloning Fast-DDS-Gen repository..."
 if [ -d "fastddsgen" ]; then
     log_warning "fastddsgen directory exists, removing..."
-    rm -rf fastddsgen
+    sudo rm -rf fastddsgen
 fi
 git clone --recursive https://github.com/eProsima/Fast-DDS-Gen.git fastddsgen
 
 log_info "Building Fast-DDS Gen with Gradle..."
 cd fastddsgen
+
+# Configure Gradle to use proxy
+log_info "Configuring Gradle proxy settings..."
+mkdir -p ~/.gradle
+cat > ~/.gradle/gradle.properties << EOF
+systemProp.http.proxyHost=ftn.proxy
+systemProp.http.proxyPort=8080
+systemProp.https.proxyHost=ftn.proxy
+systemProp.https.proxyPort=8080
+EOF
+
 ./gradlew assemble
 log_info "Fast-DDS Gen built successfully"
 
@@ -269,6 +292,15 @@ fi
 # INSTALLATION COMPLETE
 ###############################################################################
 log_section "Installation Complete!"
+
+echo ""
+log_info "Fast-DDS and all components have been successfully installed:"
+echo "  ✓ Foonathan Memory"
+echo "  ✓ Fast-CDR"
+echo "  ✓ Fast-DDS"
+echo "  ✓ Fast-DDS Python bindings"
+echo "  ✓ Fast-DDS Gen"
+echo "  ✓ LD_LIBRARY_PATH configured"
 echo ""
 log_info "Installation directories:"
 echo "  - Fast-DDS libraries: $WORK_DIR"
@@ -284,3 +316,5 @@ echo "  export PATH=\$PATH:$FASTDDS_GEN_DIR/fastddsgen/scripts"
 echo ""
 log_info "IMPORTANT: To apply environment changes in your current shell, run:"
 echo "  source ~/.bashrc"
+echo ""
+log_info "Or simply start a new terminal session."
