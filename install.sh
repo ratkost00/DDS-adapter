@@ -93,6 +93,22 @@ log_info "CMake version: $CMAKE_VERSION"
 log_info "Configuring Git to use proxy..."
 git config --global http.proxy "$PROXY_URL"
 git config --global https.proxy "$PROXY_URL"
+git config --global http.postBuffer 524288000
+git config --global http.lowSpeedLimit 0
+git config --global http.lowSpeedTime 999999
+
+# Enable git trace for debugging
+export GIT_TRACE=1
+export GIT_CURL_VERBOSE=1
+
+# Verify proxy connectivity
+log_info "Testing proxy connectivity..."
+if ! curl -x "$PROXY_URL" --connect-timeout 10 -s https://github.com > /dev/null 2>&1; then
+    log_warning "Direct proxy connection test failed. Trying alternative Git configurations..."
+    # Try with SSL verification disabled as fallback
+    git config --global http.sslVerify false
+    log_warning "SSL verification disabled for Git. This is less secure but may help with proxy issues."
+fi
 
 ###############################################################################
 # 2. INSTALL REQUIRED PACKAGES
@@ -139,7 +155,8 @@ log_info "Building foonathan_memory_vendor..."
 mkdir -p foonathan_memory_vendor/build
 cd foonathan_memory_vendor/build
 cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local/ -DBUILD_SHARED_LIBS=ON
-sudo cmake --build . --target install -- -j$(nproc)
+# Ensure proxy env vars are available to CMake subprocesses
+env http_proxy="$PROXY_URL" https_proxy="$PROXY_URL" HTTP_PROXY="$PROXY_URL" HTTPS_PROXY="$PROXY_URL" sudo cmake --build . --target install -- -j$(nproc)
 log_info "Foonathan Memory installed successfully"
 
 ###############################################################################
