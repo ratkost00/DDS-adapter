@@ -97,10 +97,6 @@ git config --global http.postBuffer 524288000
 git config --global http.lowSpeedLimit 0
 git config --global http.lowSpeedTime 999999
 
-# Enable git trace for debugging
-export GIT_TRACE=1
-export GIT_CURL_VERBOSE=1
-
 # Verify proxy connectivity
 log_info "Testing proxy connectivity..."
 if ! curl -x "$PROXY_URL" --connect-timeout 10 -s https://github.com > /dev/null 2>&1; then
@@ -155,8 +151,8 @@ log_info "Building foonathan_memory_vendor..."
 mkdir -p foonathan_memory_vendor/build
 cd foonathan_memory_vendor/build
 cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local/ -DBUILD_SHARED_LIBS=ON
-# Ensure proxy env vars are available to CMake subprocesses
-env http_proxy="$PROXY_URL" https_proxy="$PROXY_URL" HTTP_PROXY="$PROXY_URL" HTTPS_PROXY="$PROXY_URL" sudo cmake --build . --target install -- -j$(nproc)
+# Use sudo -E to preserve proxy environment variables
+sudo -E cmake --build . --target install -- -j$(nproc)
 log_info "Foonathan Memory installed successfully"
 
 ###############################################################################
@@ -176,7 +172,7 @@ log_info "Building Fast-CDR..."
 mkdir -p Fast-CDR/build
 cd Fast-CDR/build
 cmake ..
-sudo cmake --build . --target install -- -j$(nproc)
+sudo -E cmake --build . --target install -- -j$(nproc)
 log_info "Fast-CDR installed successfully"
 
 ###############################################################################
@@ -196,7 +192,7 @@ log_info "Building Fast-DDS..."
 mkdir -p Fast-DDS/build
 cd Fast-DDS/build
 cmake ..
-sudo cmake --build . --target install -- -j$(nproc)
+sudo -E cmake --build . --target install -- -j$(nproc)
 log_info "Fast-DDS installed successfully"
 
 ###############################################################################
@@ -221,7 +217,7 @@ if [ -n "$SWIG_EXECUTABLE" ]; then
 else
     cmake ..
 fi
-sudo cmake --build . --target install -- -j$(nproc)
+sudo -E cmake --build . --target install -- -j$(nproc)
 log_info "Fast-DDS Python bindings installed successfully"
 
 ###############################################################################
