@@ -14,12 +14,18 @@ set -e  # Exit on any error
 export DEBIAN_FRONTEND=noninteractive
 export TZ=Europe/Belgrade
 
-# Proxy configuration
-PROXY_URL="http://ftn.proxy:8080"
-export http_proxy="$PROXY_URL"
-export https_proxy="$PROXY_URL"
-export HTTP_PROXY="$PROXY_URL"
-export HTTPS_PROXY="$PROXY_URL"
+# Proxy configuration - use existing environment values if already set
+if [ -n "$http_proxy" ] || [ -n "$HTTP_PROXY" ]; then
+    PROXY_URL="${http_proxy:-$HTTP_PROXY}"
+    log_info "Using existing proxy from environment: $PROXY_URL"
+else
+    PROXY_URL="http://ftn.proxy:8080"
+    export http_proxy="$PROXY_URL"
+    export https_proxy="$PROXY_URL"
+    export HTTP_PROXY="$PROXY_URL"
+    export HTTPS_PROXY="$PROXY_URL"
+    log_info "No proxy in environment, applying default: $PROXY_URL"
+fi
 
 # Color codes for output
 RED='\033[0;31m'
@@ -99,11 +105,11 @@ git config --global http.lowSpeedTime 999999
 
 # Verify proxy connectivity
 log_info "Testing proxy connectivity..."
+GIT_SSL_NO_VERIFY_FLAG=""
 if ! curl -x "$PROXY_URL" --connect-timeout 10 -s https://github.com > /dev/null 2>&1; then
-    log_warning "Direct proxy connection test failed. Trying alternative Git configurations..."
-    # Try with SSL verification disabled as fallback
-    git config --global http.sslVerify false
-    log_warning "SSL verification disabled for Git. This is less secure but may help with proxy issues."
+    log_warning "Proxy connectivity test failed. SSL verification will be disabled for git clones in this session only."
+    log_warning "This does NOT modify your global git config."
+    export GIT_SSL_NO_VERIFY=1
 fi
 
 ###############################################################################
@@ -133,7 +139,7 @@ log_section "3. Preparing Working Directory"
 
 log_info "Creating working directory: $WORK_DIR"
 mkdir -p "$WORK_DIR"
-cd "$WORK_DIR"
+cd "$WORK_DIR" || { log_error "Failed to enter working directory: $WORK_DIR"; exit 1; }
 
 ###############################################################################
 # 4. INSTALL FOONATHAN MEMORY
@@ -142,14 +148,14 @@ log_section "4. Installing Foonathan Memory"
 
 log_info "Cloning foonathan_memory_vendor repository..."
 if [ -d "foonathan_memory_vendor" ]; then
-    log_warning "foonathan_memory_vendor directory exists, removing..."
+    log_warning "foonathan_memory_vendor directory exists and will be removed: $WORK_DIR/foonathan_memory_vendor"
     sudo rm -rf foonathan_memory_vendor
 fi
 git clone https://github.com/eProsima/foonathan_memory_vendor.git
 
 log_info "Building foonathan_memory_vendor..."
 mkdir -p foonathan_memory_vendor/build
-cd foonathan_memory_vendor/build
+cd foonathan_memory_vendor/build || { log_error "Failed to enter foonathan_memory_vendor/build"; exit 1; }
 cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local/ -DBUILD_SHARED_LIBS=ON
 # Use sudo -E to preserve proxy environment variables
 sudo -E cmake --build . --target install -- -j$(nproc)
@@ -160,17 +166,17 @@ log_info "Foonathan Memory installed successfully"
 ###############################################################################
 log_section "5. Installing Fast-CDR"
 
-cd "$WORK_DIR"
+cd "$WORK_DIR" || { log_error "Failed to enter working directory: $WORK_DIR"; exit 1; }
 log_info "Cloning Fast-CDR repository..."
 if [ -d "Fast-CDR" ]; then
-    log_warning "Fast-CDR directory exists, removing..."
+    log_warning "Fast-CDR directory exists and will be removed: $WORK_DIR/Fast-CDR"
     sudo rm -rf Fast-CDR
 fi
 git clone https://github.com/eProsima/Fast-CDR.git
 
 log_info "Building Fast-CDR..."
 mkdir -p Fast-CDR/build
-cd Fast-CDR/build
+cd Fast-CDR/build || { log_error "Failed to enter Fast-CDR/build"; exit 1; }
 cmake ..
 sudo -E cmake --build . --target install -- -j$(nproc)
 log_info "Fast-CDR installed successfully"
@@ -180,17 +186,17 @@ log_info "Fast-CDR installed successfully"
 ###############################################################################
 log_section "6. Installing Fast-DDS"
 
-cd "$WORK_DIR"
+cd "$WORK_DIR" || { log_error "Failed to enter working directory: $WORK_DIR"; exit 1; }
 log_info "Cloning Fast-DDS repository..."
 if [ -d "Fast-DDS" ]; then
-    log_warning "Fast-DDS directory exists, removing..."
+    log_warning "Fast-DDS directory exists and will be removed: $WORK_DIR/Fast-DDS"
     sudo rm -rf Fast-DDS
 fi
 git clone https://github.com/eProsima/Fast-DDS.git
 
 log_info "Building Fast-DDS..."
 mkdir -p Fast-DDS/build
-cd Fast-DDS/build
+cd Fast-DDS/build || { log_error "Failed to enter Fast-DDS/build"; exit 1; }
 cmake ..
 sudo -E cmake --build . --target install -- -j$(nproc)
 log_info "Fast-DDS installed successfully"
@@ -200,17 +206,17 @@ log_info "Fast-DDS installed successfully"
 ###############################################################################
 log_section "7. Installing Fast-DDS Python Bindings"
 
-cd "$WORK_DIR"
+cd "$WORK_DIR" || { log_error "Failed to enter working directory: $WORK_DIR"; exit 1; }
 log_info "Cloning Fast-DDS-python repository..."
 if [ -d "Fast-DDS-python" ]; then
-    log_warning "Fast-DDS-python directory exists, removing..."
+    log_warning "Fast-DDS-python directory exists and will be removed: $WORK_DIR/Fast-DDS-python"
     sudo rm -rf Fast-DDS-python
 fi
 git clone https://github.com/eProsima/Fast-DDS-python.git
 
 log_info "Building Fast-DDS Python bindings..."
 mkdir -p Fast-DDS-python/fastdds_python/build
-cd Fast-DDS-python/fastdds_python/build
+cd Fast-DDS-python/fastdds_python/build || { log_error "Failed to enter Fast-DDS-python/fastdds_python/build"; exit 1; }
 if [ -n "$SWIG_EXECUTABLE" ]; then
     log_info "Using SWIG 4.1 for Python bindings..."
     cmake .. -DSWIG_EXECUTABLE="$SWIG_EXECUTABLE"
@@ -236,17 +242,17 @@ fi
 
 log_info "Creating Fast-DDS Gen directory: $FASTDDS_GEN_DIR"
 mkdir -p "$FASTDDS_GEN_DIR"
-cd "$FASTDDS_GEN_DIR"
+cd "$FASTDDS_GEN_DIR" || { log_error "Failed to enter Fast-DDS Gen directory: $FASTDDS_GEN_DIR"; exit 1; }
 
 log_info "Cloning Fast-DDS-Gen repository..."
 if [ -d "fastddsgen" ]; then
-    log_warning "fastddsgen directory exists, removing..."
+    log_warning "fastddsgen directory exists and will be removed: $FASTDDS_GEN_DIR/fastddsgen"
     sudo rm -rf fastddsgen
 fi
 git clone --recursive https://github.com/eProsima/Fast-DDS-Gen.git fastddsgen
 
 log_info "Building Fast-DDS Gen with Gradle..."
-cd fastddsgen
+cd fastddsgen || { log_error "Failed to enter fastddsgen directory"; exit 1; }
 
 # Configure Gradle to use proxy
 log_info "Configuring Gradle proxy settings..."
@@ -275,7 +281,7 @@ sudo ldconfig
 log_section "10. Configuring Environment for Fast-DDS Python"
 
 log_info "Adding /usr/local/lib/ to LD_LIBRARY_PATH..."
-export LD_LIBRARY_PATH=/usr/local/lib/
+export LD_LIBRARY_PATH=/usr/local/lib/${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 
 # Detect Python version and add site-packages to PYTHONPATH
 PYTHON_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
@@ -288,7 +294,7 @@ export PYTHONPATH=$PYTHON_SITE_PACKAGES:$PYTHONPATH
 if [ -f ~/.bashrc ]; then
     if ! grep -q "export LD_LIBRARY_PATH=/usr/local/lib/" ~/.bashrc; then
         log_info "Adding LD_LIBRARY_PATH to ~/.bashrc for future sessions..."
-        echo 'export LD_LIBRARY_PATH=/usr/local/lib/' >> ~/.bashrc
+        echo 'export LD_LIBRARY_PATH=/usr/local/lib/${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}' >> ~/.bashrc
     else
         log_info "LD_LIBRARY_PATH already configured in ~/.bashrc"
     fi

@@ -2,5 +2,11 @@
 src/library/*
 !src/library/*.idl
 !src/library/__init__.py
-__pycache__/
+**/__pycache__/
 *.py[cod]
+*.so
+build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
