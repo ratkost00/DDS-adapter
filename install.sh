@@ -14,19 +14,6 @@ set -e  # Exit on any error
 export DEBIAN_FRONTEND=noninteractive
 export TZ=Europe/Belgrade
 
-# Proxy configuration - use existing environment values if already set
-if [ -n "$http_proxy" ] || [ -n "$HTTP_PROXY" ]; then
-    PROXY_URL="${http_proxy:-$HTTP_PROXY}"
-    log_info "Using existing proxy from environment: $PROXY_URL"
-else
-    PROXY_URL="http://ftn.proxy:8080"
-    export http_proxy="$PROXY_URL"
-    export https_proxy="$PROXY_URL"
-    export HTTP_PROXY="$PROXY_URL"
-    export HTTPS_PROXY="$PROXY_URL"
-    log_info "No proxy in environment, applying default: $PROXY_URL"
-fi
-
 # Color codes for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -52,6 +39,14 @@ log_section() {
     echo -e "${GREEN}$1${NC}"
     echo -e "${GREEN}========================================${NC}"
 }
+
+# Proxy configuration - only use proxy if already set in environment
+PROXY_URL="${http_proxy:-${HTTP_PROXY:-}}"
+if [ -n "$PROXY_URL" ]; then
+    log_info "Using proxy from environment: $PROXY_URL"
+else
+    log_info "No proxy set - connecting directly"
+fi
 
 # Check if running as root
 if [ "$EUID" -eq 0 ]; then 
@@ -95,21 +90,25 @@ log_info "Checking CMake version..."
 CMAKE_VERSION=$(cmake --version | head -n1 | cut -d' ' -f3)
 log_info "CMake version: $CMAKE_VERSION"
 
-# Configure Git to use proxy
-log_info "Configuring Git to use proxy..."
-git config --global http.proxy "$PROXY_URL"
-git config --global https.proxy "$PROXY_URL"
 git config --global http.postBuffer 524288000
 git config --global http.lowSpeedLimit 0
 git config --global http.lowSpeedTime 999999
 
-# Verify proxy connectivity
-log_info "Testing proxy connectivity..."
-GIT_SSL_NO_VERIFY_FLAG=""
-if ! curl -x "$PROXY_URL" --connect-timeout 10 -s https://github.com > /dev/null 2>&1; then
-    log_warning "Proxy connectivity test failed. SSL verification will be disabled for git clones in this session only."
-    log_warning "This does NOT modify your global git config."
-    export GIT_SSL_NO_VERIFY=1
+if [ -n "$PROXY_URL" ]; then
+    log_info "Configuring Git to use proxy: $PROXY_URL"
+    git config --global http.proxy "$PROXY_URL"
+    git config --global https.proxy "$PROXY_URL"
+
+    log_info "Testing proxy connectivity..."
+    if ! curl -x "$PROXY_URL" --connect-timeout 10 -s https://github.com > /dev/null 2>&1; then
+        log_warning "Proxy connectivity test failed. SSL verification will be disabled for git clones in this session only."
+        log_warning "This does NOT modify your global git config."
+        export GIT_SSL_NO_VERIFY=1
+    fi
+else
+    log_info "Clearing any previously set git proxy settings..."
+    git config --global --unset http.proxy  2>/dev/null || true
+    git config --global --unset https.proxy 2>/dev/null || true
 fi
 
 ###############################################################################
@@ -254,15 +253,21 @@ git clone --recursive https://github.com/eProsima/Fast-DDS-Gen.git fastddsgen
 log_info "Building Fast-DDS Gen with Gradle..."
 cd fastddsgen || { log_error "Failed to enter fastddsgen directory"; exit 1; }
 
-# Configure Gradle to use proxy
-log_info "Configuring Gradle proxy settings..."
 mkdir -p ~/.gradle
-cat > ~/.gradle/gradle.properties << EOF
-systemProp.http.proxyHost=ftn.proxy
-systemProp.http.proxyPort=8080
-systemProp.https.proxyHost=ftn.proxy
-systemProp.https.proxyPort=8080
+if [ -n "$PROXY_URL" ]; then
+    PROXY_HOST=$(echo "$PROXY_URL" | sed 's|https\?://||' | cut -d: -f1)
+    PROXY_PORT=$(echo "$PROXY_URL" | sed 's|https\?://||' | cut -d: -f2)
+    log_info "Configuring Gradle proxy settings ($PROXY_HOST:$PROXY_PORT)..."
+    cat > ~/.gradle/gradle.properties << EOF
+systemProp.http.proxyHost=$PROXY_HOST
+systemProp.http.proxyPort=$PROXY_PORT
+systemProp.https.proxyHost=$PROXY_HOST
+systemProp.https.proxyPort=$PROXY_PORT
 EOF
+else
+    log_info "No proxy set - clearing Gradle proxy settings..."
+    sed -i '/systemProp\.\(http\|https\)\.proxy/d' ~/.gradle/gradle.properties 2>/dev/null || true
+fi
 
 ./gradlew assemble
 log_info "Fast-DDS Gen built successfully"
