@@ -8,14 +8,22 @@ existing Adapter.message string field as "seq:send_time:padding" -- no
 changes to the IDL or the generated library are needed.
 
 Run subscriber and publisher in two separate terminals (same machine, so
-they share one wall clock):
+they share one wall clock). Pass the same --interval/--size to both, so the
+subscriber's --out row records the parameters that actually produced them
+(the subscriber doesn't enforce them, just labels its results with them):
 
-    python3 benchmark.py subscriber --count 1000
-    python3 benchmark.py publisher --count 1000
+    python3 benchmark.py subscriber --count 1000 --interval 0.005
+    python3 benchmark.py publisher --count 1000 --interval 0.005
+
+Each subscriber run appends its per-message latencies to --out (default
+benchmark_results.csv) rather than overwriting it, so results from a whole
+rate sweep accumulate in one file for later analysis.
 """
 import argparse
 import csv
+import os
 import time
+from datetime import datetime
 from multiprocessing import Queue
 from queue import Empty
 
@@ -47,12 +55,12 @@ def run_publisher(count: int, payload_size: int, interval: float, drain_wait: fl
     writer.delete()
 
 
-def run_subscriber(count: int, timeout: float, out_path: str) -> None:
+def run_subscriber(count: int, timeout: float, out_path: str, interval: float, size: int) -> None:
+    run_timestamp = datetime.now().isoformat(timespec="seconds")
     queue: Queue = Queue()
     reader = Reader(topicName=TOPIC_NAME, topic=TOPIC, queue=queue)
 
     received = []
-    start = time.time()
     for _ in range(count):
         try:
             message = queue.get(timeout=timeout)
@@ -62,20 +70,23 @@ def run_subscriber(count: int, timeout: float, out_path: str) -> None:
         recv_time = time.time()
         seq_str, send_time_str, _ = message.split(":", 2)
         received.append((int(seq_str), float(send_time_str), recv_time))
-    elapsed = time.time() - start
     reader.delete()
 
     if not received:
         print("No messages received.")
         return
 
+    # Span between first and last arrival, not total loop time -- a trailing
+    # timeout after the last message shouldn't be counted as receiving time.
+    elapsed = received[-1][2] - received[0][2]
     latencies_ms = sorted((r - s) * 1000 for _, s, r in received)
     n = len(latencies_ms)
 
     def pct(p: float) -> float:
         return latencies_ms[min(n - 1, int(n * p))]
 
-    print(f"Received {n} messages in {elapsed:.3f}s ({n / elapsed:.1f} msg/s)")
+    rate = f"{n / elapsed:.1f} msg/s" if elapsed > 0 else "n/a (span too short to measure)"
+    print(f"Received {n} messages in {elapsed:.3f}s ({rate})")
     print(f"Dropped: {count - n} of {count}")
     print(
         f"Latency ms - min: {latencies_ms[0]:.3f}, avg: {sum(latencies_ms) / n:.3f}, "
@@ -84,29 +95,34 @@ def run_subscriber(count: int, timeout: float, out_path: str) -> None:
     )
 
     if out_path:
-        with open(out_path, "w", newline="") as f:
+        write_header = not (os.path.isfile(out_path) and os.path.getsize(out_path) > 0)
+        with open(out_path, "a", newline="") as f:
             csv_writer = csv.writer(f)
-            csv_writer.writerow(["seq", "send_time", "recv_time", "latency_ms"])
+            if write_header:
+                csv_writer.writerow([
+                    "run_timestamp", "interval", "size", "count",
+                    "seq", "send_time", "recv_time", "latency_ms",
+                ])
             for seq, s, r in received:
-                csv_writer.writerow([seq, s, r, (r - s) * 1000])
-        print(f"Wrote per-message results to {out_path}")
+                csv_writer.writerow([run_timestamp, interval, size, count, seq, s, r, (r - s) * 1000])
+        print(f"Appended {n} rows for this run to {out_path}")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="DDS adapter latency/throughput benchmark")
     parser.add_argument("role", choices=["publisher", "subscriber"])
     parser.add_argument("--count", type=int, default=1000, help="number of messages")
-    parser.add_argument("--size", type=int, default=0, help="publisher: extra padding bytes per message")
-    parser.add_argument("--interval", type=float, default=0.0, help="publisher: seconds between sends (0 = as fast as possible)")
+    parser.add_argument("--size", type=int, default=0, help="extra padding bytes per message (publisher: applied; subscriber: recorded in --out for this run)")
+    parser.add_argument("--interval", type=float, default=0.0, help="seconds between sends (publisher: applied, 0 = as fast as possible; subscriber: recorded in --out for this run)")
     parser.add_argument("--drain-wait", type=float, default=2.0, help="publisher: seconds to wait after sending before tearing down the writer, so reliable retransmission can finish")
     parser.add_argument("--timeout", type=float, default=10.0, help="subscriber: seconds to wait per message before giving up")
-    parser.add_argument("--out", type=str, default="bench_results.csv", help="subscriber: CSV output path (empty to skip)")
+    parser.add_argument("--out", type=str, default="benchmark_results.csv", help="subscriber: CSV path to append this run's results to (empty to skip)")
     args = parser.parse_args()
 
     if args.role == "publisher":
         run_publisher(args.count, args.size, args.interval, args.drain_wait)
     else:
-        run_subscriber(args.count, args.timeout, args.out)
+        run_subscriber(args.count, args.timeout, args.out, args.interval, args.size)
 
 
 if __name__ == "__main__":
