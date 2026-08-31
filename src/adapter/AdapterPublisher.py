@@ -59,6 +59,8 @@ class Writer:
         self.listener = WriterListener(self)
         self.writer_qos = fastdds.DataWriterQos()
         self.publisher.get_default_datawriter_qos(self.writer_qos)
+        self.writer_qos.reliability().kind = fastdds.RELIABLE_RELIABILITY_QOS
+        self.writer_qos.history().kind = fastdds.KEEP_ALL_HISTORY_QOS
         self.writer = self.publisher.create_datawriter(self.topic, self.writer_qos, self.listener)
 
 
@@ -68,7 +70,6 @@ class Writer:
         data.message(message)
         data.index(self.index)
         self.writer.write(data)
-        print("Sending {message} : {index}".format(message=data.message(), index=data.index()))
         self.index = self.index + 1
 
 

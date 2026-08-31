@@ -37,8 +37,7 @@ class ReaderListener(fastdds.DataReaderListener):
         info = fastdds.SampleInfo()
         data = Adapter()
         reader.take_next_sample(data, info)
-        print("Received {message}".format(message=data.message()))
-        if self.queue is not None:
+        if info.valid_data and self.queue is not None:
             self.queue.put(data.message())
 
 
@@ -66,6 +65,8 @@ class Reader:
         self.listener = ReaderListener(queue=queue)
         self.reader_qos = fastdds.DataReaderQos()
         self.subscriber.get_default_datareader_qos(self.reader_qos)
+        self.reader_qos.reliability().kind = fastdds.RELIABLE_RELIABILITY_QOS
+        self.reader_qos.history().kind = fastdds.KEEP_ALL_HISTORY_QOS
         self.reader = self.subscriber.create_datareader(self.topic, self.reader_qos, self.listener)
 
 
