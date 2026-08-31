@@ -52,7 +52,7 @@ def main():
     remote_server_addresses: list[tuple[str, int]] = [('localhost', port) for port in remote_ports]
 
     queue : Queue = Queue()
-    commProcess = Process(target=server_fun, args=(queue, local_port))
+    commProcess = Process(target=server_fun, args=(local_port, queue))
     commProcess.start()
     
     writer = MessageWriter()

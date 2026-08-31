@@ -49,7 +49,7 @@ class MessageWriter(metaclass = CommunicationSingleton) :
         self.peers[remote_port] = AdapterPublisher.Writer(topicName=f"Topic{remote_port}", topic=f"peer/{remote_port}")
 
 
-def server_fun(queue, local_port) -> None:
+def server_fun(local_port, queue) -> None:
     try:
         listener : MessageListener = MessageListener(msg_queue=queue, local_port=local_port)
     except ValueError as e:
